@@ -14,7 +14,7 @@ class TopicMonitorConfig:
 	topic_name: str
 	topic_type: str
 	field: str
-	timeout_ms: float
+	timeout_s: float
 	timeout_response: str
 	ranges: Dict[str, Dict[str, float]]
 
@@ -48,7 +48,7 @@ class HealthMonitor(Node):
 			topic_name = topic_cfg['topic_name'],
 			topic_type = topic_cfg['topic_type'],
 			field = topic_cfg['field'],
-			timeout_ms = topic_cfg['timeout']['timeout_time'],
+			timeout_s = topic_cfg['timeout']['timeout_time'],
 			timeout_response = topic_cfg['timeout']['timeout_response'],
 			ranges = {
 				'normal': topic_cfg['normal_range'],
@@ -104,9 +104,9 @@ class HealthMonitor(Node):
 	def check_all_timeouts(self):
 		now = self.get_clock().now()
 		for monitor in self.topic_monitors:
-			elapsed = (now - monitor.last_msg_time).nanoseconds / 1e6
-			if elapsed > monitor.timeout_ms:
-				self.get_logger().warn(f'Timeout on {monitor.topic_name}.{monitor.field}: no message for {elapsed:.0f}ms -> {monitor.timeout_response}')
+			elapsed = (now - monitor.last_msg_time).nanoseconds / 1e9 # Nanoseconds to seconds
+			if elapsed > monitor.timeout_s:
+				self.get_logger().warn(f'Timeout on {monitor.topic_name}.{monitor.field}: no message for {elapsed:.0f}s -> {monitor.timeout_response}')
 
 def main(args=None):
 	rclpy.init()

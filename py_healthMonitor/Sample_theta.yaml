@@ -3,7 +3,7 @@ topic:
   topic_type: 'turtlesim.msg.Pose'
   field: theta
   timeout:
-    timeout_time: 1000 #timeInMiliseconds
+    timeout_time: 1 #time in seconds
     timeout_response: warning #normal/warning/error/fatal
   normal_range:
     min: 0.0
