@@ -5,6 +5,7 @@ import sys
 import os
 import glob
 import importlib
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from dataclasses import dataclass
 from typing import Any, Dict
 from datetime import datetime
@@ -21,9 +22,8 @@ class TopicMonitorConfig:
 
 
 class HealthMonitor(Node):
-
     def __init__(self, config_dir):
-        super().__init__("health_monitor")
+        super().__init__("health_monitor", namespace="health_monitor")
 
         self.get_logger().info(f"Loading YAML configurations from: {config_dir}")
 
@@ -31,7 +31,10 @@ class HealthMonitor(Node):
         for cfg in self.load_yaml_files(config_dir):
             self.topic_monitors.append(self.create_monitor(cfg))
 
-        self.timer = self.create_timer(0.5, self.check_all_timeouts)
+        self.timeout_timer = self.create_timer(0.1, self.check_all_timeouts)
+
+        self.status_publisher = self.create_publisher(DiagnosticArray, "status", 10)
+        self.status_timer = self.create_timer(0.1, self.output_status)
 
     def load_yaml_files(self, path):
         # TODO: Add basic validation for ranges of basic/error/etc.
@@ -60,10 +63,9 @@ class HealthMonitor(Node):
             timeout_s=topic_cfg["timeout"]["timeout_time"],
             timeout_response=topic_cfg["timeout"]["timeout_response"],
             ranges={
-                "normal": topic_cfg["normal_range"],
-                "warning": topic_cfg["warning_range"],
+                "ok": topic_cfg["ok_range"],
+                "warn": topic_cfg["warn_range"],
                 "error": topic_cfg["error_range"],
-                "fatal": topic_cfg["fatal_range"],
             },
         )
 
@@ -72,19 +74,20 @@ class HealthMonitor(Node):
         msg_class = getattr(msg_module, msg_class_name)
 
         monitor.last_msg_time = self.get_clock().now()
-        monitor.last_status = "unknown"
+        monitor.last_status = "error"
+        monitor.last_value = None
 
         self.create_subscription(
             msg_class,
             monitor.topic_name,
-            lambda msg, m=monitor: self.callback(msg, m),
+            lambda msg, m=monitor: self.monitor_callback(msg, m),
             10,
         )
 
         self.get_logger().info(f"Monitoring {monitor.topic_name}.{monitor.field}")
         return monitor
 
-    def callback(self, msg, monitor):
+    def monitor_callback(self, msg, monitor):
         monitor.last_msg_time = self.get_clock().now()
 
         val = msg
@@ -93,29 +96,18 @@ class HealthMonitor(Node):
 
         status = self.evaluate_value(val, monitor.ranges)
 
-        # TODO: Make this dict work for message levels
-        # levelDict = {
-        # 	'normal': self.getlogger().info,
-        # 	'warning': self.get_logger().warn,
-        # 	'error': self.get_logger().error,
-        # 	'fatal': self.get_logger().fatal
-        # }
+        monitor.last_status = status
+        monitor.last_value = val
 
-        self.get_logger().info(
-            f"{monitor.topic_name}.{monitor.field} = {val:.3f} -> {status}"
-        )
-
-        # TODO: Make this determine if a set amount of time has elapsed
-        # # To log if state changes or periodically (avoid flooding)
-        # if status != monitor.last_status:
-        # 	self.get_logger().info(f'{monitor.topic_name}.{monitor.field} = {val:.3f} -> {status}')
-        # 	monitor.last_status = status
+        # self.get_logger().info(
+        #     f"{monitor.topic_name}.{monitor.field} = {val:.3f} -> {status}"
+        # )
 
     def evaluate_value(self, val, ranges):
         for level, limits in ranges.items():
             if limits["min"] <= val < limits["max"]:
                 return level
-        return "unknown"
+        return "error"
 
     def check_all_timeouts(self):
         now = self.get_clock().now()
@@ -127,6 +119,31 @@ class HealthMonitor(Node):
                 self.get_logger().warn(
                     f"Timeout on {monitor.topic_name}.{monitor.field}: no message for {elapsed:.0f}s -> {monitor.timeout_response}"
                 )
+
+    def output_status(self):
+        array = DiagnosticArray()
+
+        level_map = {
+            "ok": DiagnosticStatus.OK,
+            "warn": DiagnosticStatus.WARN,
+            "error": DiagnosticStatus.ERROR,
+            "stale": DiagnosticStatus.STALE,
+        }
+
+        for monitor in self.topic_monitors:
+            status = DiagnosticStatus()
+            status.level = level_map[monitor.last_status]
+            status.name = f"{monitor.topic_name}.{monitor.field}"
+            status.message = monitor.last_status
+
+            key_value = KeyValue()
+            key_value.key = "value"
+            key_value.value = str(monitor.last_value)
+            status.values.append(key_value)
+
+            array.status.append(status)
+
+        self.status_publisher.publish(array)
 
 
 def main(args=None):

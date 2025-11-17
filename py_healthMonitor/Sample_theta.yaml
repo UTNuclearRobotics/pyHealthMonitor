@@ -1,19 +1,16 @@
 topic:
-  topic_name: '/turtle1/pose'
-  topic_type: 'turtlesim.msg.Pose'
+  topic_name: "/turtle1/pose"
+  topic_type: "turtlesim.msg.Pose"
   field: theta
   timeout:
     timeout_time: 1 #time in seconds
     timeout_response: warning #normal/warning/error/fatal
-  normal_range:
+  ok_range:
     min: 0.0
     max: 5.0
-  warning_range:
+  warn_range:
     min: 5.0
     max: 11.0
   error_range:
     min: 11.0
     max: 12.0
-  fatal_range:
-    min: 12.0
-    max: 100.0
