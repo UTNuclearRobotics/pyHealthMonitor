@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 import os
 from glob import glob
 
-package_name = "py_healthMonitor"
+package_name = "health_monitor"
 
 setup(
     name=package_name,
@@ -27,7 +27,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "monitor = py_healthMonitor.HealthMonitor:main",
+            "monitor = health_monitor.health_monitor:main",
         ],
     },
 )
