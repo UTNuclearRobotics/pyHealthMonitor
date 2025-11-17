@@ -4,7 +4,7 @@ topic:
   field: x
   timeout:
     period: 1 #time in seconds
-    status: stale #normal/warning/error/fatal
+    status: stale #ok/warn/error/stale
   ok_range:
     min: 0.0
     max: 5.0
