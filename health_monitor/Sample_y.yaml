@@ -5,12 +5,10 @@ topic:
   timeout:
     period: 1 #time in seconds
     status: stale #ok/warn/error/stale
-  ok_range:
-    min: 0.0
-    max: 5.0
-  warn_range:
-    min: 5.0
-    max: 11.0
-  error_range:
-    min: 11.0
-    max: 12.0
+  ranges:
+    - status: ok
+      min: 0.0
+      max: 5.0
+    - status: warn
+      min: 5.0
+      max: 11.0

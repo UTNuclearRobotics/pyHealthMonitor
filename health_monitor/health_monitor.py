@@ -65,11 +65,7 @@ class HealthMonitor(Node):
             field=topic_cfg["field"],
             timeout_period=topic_cfg["timeout"]["period"],
             timeout_status=topic_cfg["timeout"]["status"],
-            ranges={
-                "ok": topic_cfg["ok_range"],
-                "warn": topic_cfg["warn_range"],
-                "error": topic_cfg["error_range"],
-            },
+            ranges=topic_cfg["ranges"],
             last_msg_time=self.get_clock().now(),
             last_status="error",
             last_value=None,
@@ -89,7 +85,7 @@ class HealthMonitor(Node):
         self.get_logger().info(f"Monitoring {monitor.topic_name}.{monitor.field}")
         return monitor
 
-    def monitor_callback(self, msg, monitor):
+    def monitor_callback(self, msg, monitor: TopicMonitorConfig):
         monitor.last_msg_time = self.get_clock().now()
 
         val = msg
@@ -106,9 +102,9 @@ class HealthMonitor(Node):
         # )
 
     def evaluate_value(self, val, ranges):
-        for level, limits in ranges.items():
-            if limits["min"] <= val < limits["max"]:
-                return level
+        for r in ranges:
+            if r["min"] <= val < r["max"]:
+                return r["status"]
         return "error"
 
     def check_all_timeouts(self):
