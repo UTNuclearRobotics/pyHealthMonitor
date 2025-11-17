@@ -44,6 +44,13 @@ class HealthMonitor(Node):
 
 	def create_monitor(self, cfg):
 		topic_cfg = cfg['topic']
+
+		# Testing to see if there is a field defining this as a bool, unsure if this is the approach I want to take
+		if topic_cfg.get('is_bool') is not None:
+			print ('Is bool!')
+		else:
+			print('Is not bool!')
+
 		monitor = TopicMonitorConfig(
 			topic_name = topic_cfg['topic_name'],
 			topic_type = topic_cfg['topic_type'],
