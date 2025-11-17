@@ -8,7 +8,7 @@ import glob
 import importlib
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 
 @dataclass
@@ -18,7 +18,7 @@ class TopicMonitorConfig:
     field: str
     timeout_period: float
     timeout_status: str
-    ranges: Dict[str, Dict[str, float]]
+    criteria: Any
     last_msg_time: Time
     last_status: str
     last_value: Any
@@ -53,19 +53,13 @@ class HealthMonitor(Node):
     def create_monitor(self, cfg):
         topic_cfg = cfg["topic"]
 
-        # Testing to see if there is a field defining this as a bool, unsure if this is the approach I want to take
-        if topic_cfg.get("is_bool") is not None:
-            print("Is bool!")
-        else:
-            print("Is not bool!")
-
         monitor = TopicMonitorConfig(
             topic_name=topic_cfg["topic_name"],
             topic_type=topic_cfg["topic_type"],
             field=topic_cfg["field"],
             timeout_period=topic_cfg["timeout"]["period"],
             timeout_status=topic_cfg["timeout"]["status"],
-            ranges=topic_cfg["ranges"],
+            criteria=topic_cfg["criteria"],
             last_msg_time=self.get_clock().now(),
             last_status="error",
             last_value=None,
@@ -92,7 +86,7 @@ class HealthMonitor(Node):
         for attr in monitor.field.split("."):
             val = getattr(val, attr)
 
-        status = self.evaluate_value(val, monitor.ranges)
+        status = self.evaluate_value(val, monitor)
 
         monitor.last_status = status
         monitor.last_value = val
@@ -101,10 +95,15 @@ class HealthMonitor(Node):
         #     f"{monitor.topic_name}.{monitor.field} = {val:.3f} -> {status}"
         # )
 
-    def evaluate_value(self, val, ranges):
-        for r in ranges:
-            if r["min"] <= val < r["max"]:
-                return r["status"]
+    def evaluate_value(self, val, monitor: TopicMonitorConfig):
+        for criterion in monitor.criteria:
+            status = criterion["status"]
+            if "value" not in criterion:
+                if criterion["min"] <= val < criterion["max"]:
+                    return status
+            else:
+                if val == criterion["value"]:
+                    return status
         return "error"
 
     def check_all_timeouts(self):

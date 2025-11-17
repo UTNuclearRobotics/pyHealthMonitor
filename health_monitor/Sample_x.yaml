@@ -5,7 +5,7 @@ topic:
   timeout:
     period: 1 #time in seconds
     status: stale #ok/warn/error/stale
-  ranges:
+  criteria:
     - status: ok
       min: 2.0
       max: 3.0
