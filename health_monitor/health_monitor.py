@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.time import Time
 import yaml
 import sys
 import os
@@ -8,7 +9,6 @@ import importlib
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from dataclasses import dataclass
 from typing import Any, Dict
-from datetime import datetime
 
 
 @dataclass
@@ -16,9 +16,12 @@ class TopicMonitorConfig:
     topic_name: str
     topic_type: str
     field: str
-    timeout_s: float
-    timeout_response: str
+    timeout_period: float
+    timeout_status: str
     ranges: Dict[str, Dict[str, float]]
+    last_msg_time: Time
+    last_status: str
+    last_value: Any
 
 
 class HealthMonitor(Node):
@@ -27,7 +30,7 @@ class HealthMonitor(Node):
 
         self.get_logger().info(f"Loading YAML configurations from: {config_dir}")
 
-        self.topic_monitors = []
+        self.topic_monitors: list[TopicMonitorConfig] = []
         for cfg in self.load_yaml_files(config_dir):
             self.topic_monitors.append(self.create_monitor(cfg))
 
@@ -60,22 +63,21 @@ class HealthMonitor(Node):
             topic_name=topic_cfg["topic_name"],
             topic_type=topic_cfg["topic_type"],
             field=topic_cfg["field"],
-            timeout_s=topic_cfg["timeout"]["timeout_time"],
-            timeout_response=topic_cfg["timeout"]["timeout_response"],
+            timeout_period=topic_cfg["timeout"]["period"],
+            timeout_status=topic_cfg["timeout"]["status"],
             ranges={
                 "ok": topic_cfg["ok_range"],
                 "warn": topic_cfg["warn_range"],
                 "error": topic_cfg["error_range"],
             },
+            last_msg_time=self.get_clock().now(),
+            last_status="error",
+            last_value=None,
         )
 
         msg_module_name, msg_class_name = monitor.topic_type.rsplit(".", 1)
         msg_module = importlib.import_module(msg_module_name)
         msg_class = getattr(msg_module, msg_class_name)
-
-        monitor.last_msg_time = self.get_clock().now()
-        monitor.last_status = "error"
-        monitor.last_value = None
 
         self.create_subscription(
             msg_class,
@@ -115,13 +117,12 @@ class HealthMonitor(Node):
             elapsed = (
                 now - monitor.last_msg_time
             ).nanoseconds / 1e9  # Nanoseconds to seconds
-            if elapsed > monitor.timeout_s:
-                self.get_logger().warn(
-                    f"Timeout on {monitor.topic_name}.{monitor.field}: no message for {elapsed:.0f}s -> {monitor.timeout_response}"
-                )
+            if elapsed > monitor.timeout_period:
+                monitor.last_status = monitor.timeout_status
 
     def output_status(self):
         array = DiagnosticArray()
+        array.header.stamp = self.get_clock().now().to_msg()
 
         level_map = {
             "ok": DiagnosticStatus.OK,

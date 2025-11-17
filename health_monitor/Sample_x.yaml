@@ -3,8 +3,8 @@ topic:
   topic_type: "turtlesim.msg.Pose"
   field: x
   timeout:
-    timeout_time: 1 #time in seconds
-    timeout_response: warning #normal/warning/error/fatal
+    period: 1 #time in seconds
+    status: stale #normal/warning/error/fatal
   ok_range:
     min: 0.0
     max: 5.0
