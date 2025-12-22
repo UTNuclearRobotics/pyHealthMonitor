@@ -1,0 +1,14 @@
+topic:
+  topic_name: "/turtle1/pose"
+  topic_type: "turtlesim.msg.Pose"
+  field: theta
+  timeout:
+    period: 1 #time in seconds
+    status: stale #ok/warn/error/stale
+  criteria:
+    - status: ok
+      min: -1.0
+      max: 1.0
+    - status: warn
+      min: -2.0
+      max: 2.0

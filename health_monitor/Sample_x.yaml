@@ -1,0 +1,14 @@
+topic:
+  topic_name: "/turtle1/pose"
+  topic_type: "turtlesim.msg.Pose"
+  field: x
+  timeout:
+    period: 1 #time in seconds
+    status: stale #ok/warn/error/stale
+  criteria:
+    - status: ok
+      min: 2.0
+      max: 3.0
+    - status: ok
+      min: 4.0
+      max: 5.0
